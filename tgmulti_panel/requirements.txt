@@ -1,0 +1,15 @@
+# tgmultipanel - متطلبات التشغيل (بدون Supabase - كل شيء محلي)
+# التثبيت داخل البيئة الافتراضية:  pip install -r requirements.txt
+
+# مكتبة Telegram (MTProto) - نفس إصدار المحرك الأصلي
+telethon>=1.36,<2.0
+
+# الواجهة الرسومية (Windows / Linux / macOS)
+PyQt5>=5.15,<6.0
+
+# تسريع التشفير لـ Telethon (اختياري لكنه موصى به - يجعل الاتصال أسرع)
+cryptg>=0.4 ; platform_python_implementation == "CPython"
+
+# تبعيات مساعدة تعتمد عليها Telethon
+pyaes>=1.6
+rsa>=4.9

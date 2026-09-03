@@ -1,0 +1,16 @@
+# بيئة التشغيل
+venv/
+__pycache__/
+*.pyc
+
+# بيانات محلية تُنشأ أثناء التشغيل
+data/
+logs/*
+!logs/.gitkeep
+
+# الجلسات الحقيقية (حساسة - لا تُرفع أبداً)
+sessions/**/*.session
+sessions/**/*.session-journal
+sessions/**/*.json
+*.session
+*.session-journal
