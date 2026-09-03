@@ -210,8 +210,10 @@ def request_code():
     async def _send_code():
         client = TelegramClient(str(SESSIONS_DIR / session_name), API_ID, API_HASH)
         await client.connect()
+        # send_code_request تُرجع كائن auth.SentCode وفيه الحقل .type
+        # (SentCodeTypeApp / SentCodeTypeSms / SentCodeTypeCall / ...)
         result = await client.send_code_request(phone)
-        return client, result.sent
+        return client, type(getattr(result, "type", None)).__name__
 
     try:
         client, code_type = _run_in_loop(_send_code(), timeout=60)
@@ -221,14 +223,33 @@ def request_code():
         app.logger.exception("request_code: خطأ غير متوقع")
         return jsonify(status="error", message=f"تعذّر الاتصال بخوادم تيليجرام: {exc}")
 
+    # حالة نادرة: تيليجرام يطلب إعداد بريد إلكتروني لتسجيل الدخول أولًا
+    if code_type == "SentCodeTypeSetUpEmailRequired":
+        try:
+            _run_in_loop(client.disconnect(), timeout=10)
+        except Exception:
+            pass
+        return jsonify(
+            status="error",
+            message=("يطلب تيليجرام إعداد بريد إلكتروني لتسجيل الدخول لهذا الحساب. "
+                     "أكمل الإعداد من تطبيق تيليجرام الرسمي ثم أعد المحاولة."),
+        )
+
     _active_clients[phone] = client
 
-    # نوع قنات وصول الرمز (تطبيق / رسالة / اتصال هاتفي)
+    # نوع قناة وصول الرمز حسب اسم الصنف الذي أعادته Telethon
     channel = {
-        "sms": "رسالة نصية (SMS)",
-        "call": "اتصال هاتفي",
-        "app": "تطبيق تيليجرام",
-    }.get(getattr(code_type, "code_type", ""), "التطبيق")
+        "SentCodeTypeApp": "تطبيق تيليجرام (افتح تيليجرام على جهاز مسجّل الدخول)",
+        "SentCodeTypeSms": "رسالة نصية (SMS)",
+        "SentCodeTypeSmsWord": "رسالة نصية (SMS) — الرمز كلمة",
+        "SentCodeTypeSmsPhrase": "رسالة نصية (SMS) — الرمز عبارة",
+        "SentCodeTypeCall": "اتصال هاتفي",
+        "SentCodeTypeFlashCall": "اتصال سريع (Flash Call)",
+        "SentCodeTypeMissedCall": "مكالمة فائتة (آخر أرقام المتصل هي الرمز)",
+        "SentCodeTypeFragmentSms": "منصة Fragment",
+        "SentCodeTypeEmailCode": "البريد الإلكتروني",
+        "SentCodeTypeFirebaseSms": "رسالة نصية (SMS)",
+    }.get(code_type, "تيليجرام")
 
     return jsonify(status="ok", message=f"تم إرسال رمز التحقق عبر {channel} — تحقق من جوالك.")
 
