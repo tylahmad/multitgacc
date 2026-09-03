@@ -1,0 +1,544 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl" data-theme="dark">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>TeleSession — تسجيل جلسات Telethon</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Tajawal:wght@400;500;700;800;900&display=swap" rel="stylesheet" />
+<style>
+/* ═══════════════ متغيرات الألوان: الوضع الداكن (افتراضي) والفاتح ═══════════════ */
+:root, [data-theme="dark"] {
+  --bg: #0a0f1e;
+  --card: #101828;
+  --surface: #16203a;
+  --text: #e9eef8;
+  --muted: #8fa0bb;
+  --border: #24324f;
+  --accent: #3b82f6;            /* أزرق: الإجراء والتحميل */
+  --accent-soft: rgba(59, 130, 246, .14);
+  --success: #22c55e;           /* أخضر: النجاح */
+  --success-soft: rgba(34, 197, 94, .13);
+  --danger: #ef4444;            /* أحمر: الفشل */
+  --danger-soft: rgba(239, 68, 68, .12);
+  --shadow: 0 20px 60px rgba(0, 0, 0, .45);
+}
+[data-theme="light"] {
+  --bg: #eef2f9;
+  --card: #ffffff;
+  --surface: #f2f5fb;
+  --text: #101828;
+  --muted: #667085;
+  --border: #e2e8f2;
+  --accent: #2563eb;
+  --accent-soft: rgba(37, 99, 235, .08);
+  --success: #16a34a;
+  --success-soft: rgba(22, 163, 74, .1);
+  --danger: #dc2626;
+  --danger-soft: rgba(220, 38, 38, .08);
+  --shadow: 0 20px 50px rgba(15, 23, 42, .12);
+}
+
+* { margin: 0; padding: 0; box-sizing: border-box; }
+
+body {
+  min-height: 100vh;
+  background: var(--bg);
+  color: var(--text);
+  font-family: "Tajawal", "Segoe UI", Tahoma, sans-serif;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  transition: background .3s ease, color .3s ease;
+  overflow-x: hidden;
+}
+
+/* فقاعات ضوئية خلفية */
+.orb { position: fixed; border-radius: 50%; filter: blur(95px); opacity: .32; z-index: -1; }
+.orb-1 { width: 430px; height: 430px; background: #2563eb; top: -130px; right: -130px; }
+.orb-2 { width: 370px; height: 370px; background: #0ea5e9; bottom: -150px; left: -110px; }
+
+/* ═══════════════ الترويسة ═══════════════ */
+header {
+  width: 100%;
+  max-width: 900px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 22px 24px 0;
+}
+.brand { display: flex; align-items: center; gap: 12px; }
+.logo {
+  width: 44px; height: 44px;
+  border-radius: 13px;
+  display: grid; place-items: center;
+  font-size: 22px;
+  background: linear-gradient(135deg, #3b82f6, #06b6d4);
+  box-shadow: 0 8px 24px rgba(37, 99, 235, .35);
+}
+.brand h1 { font-size: 21px; font-weight: 900; letter-spacing: -.3px; }
+.brand p { font-size: 12.5px; color: var(--muted); }
+.icon-btn {
+  width: 42px; height: 42px;
+  border-radius: 12px;
+  border: 1px solid var(--border);
+  background: var(--card);
+  color: var(--text);
+  font-size: 18px;
+  cursor: pointer;
+  transition: transform .2s, background .2s;
+}
+.icon-btn:hover { transform: scale(1.06); background: var(--surface); }
+
+/* ═══════════════ البطاقة الرئيسية ═══════════════ */
+main { flex: 1; width: 100%; display: flex; justify-content: center; padding: 34px 16px 20px; }
+.card {
+  width: min(540px, 100%);
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: 22px;
+  box-shadow: var(--shadow);
+  padding: 34px 32px 30px;
+}
+
+/* ═══════════════ مؤشر الخطوات ═══════════════ */
+.stepper { display: flex; align-items: flex-start; list-style: none; margin-bottom: 26px; }
+.step { flex: 1; display: flex; flex-direction: column; align-items: center; gap: 7px; }
+.step .dot {
+  width: 36px; height: 36px;
+  border-radius: 50%;
+  display: grid; place-items: center;
+  font-weight: 800; font-size: 15px;
+  background: var(--surface);
+  color: var(--muted);
+  border: 2px solid var(--border);
+  transition: all .3s ease;
+}
+.step .lbl { font-size: 12.5px; font-weight: 500; color: var(--muted); transition: color .3s; }
+.step.active .dot {
+  background: var(--accent); border-color: var(--accent); color: #fff;
+  box-shadow: 0 0 0 5px var(--accent-soft);
+}
+.step.active .lbl { color: var(--accent); font-weight: 700; }
+.step.done .dot { background: var(--success); border-color: var(--success); color: #fff; }
+.step.done .lbl { color: var(--success); }
+.line { flex: 1; height: 2px; background: var(--border); margin-top: 17px; border-radius: 2px; transition: background .4s; }
+.line.done { background: var(--success); }
+
+/* ═══════════════ التنبيهات ═══════════════ */
+.alert {
+  padding: 13px 15px;
+  border-radius: 13px;
+  font-size: 14px;
+  line-height: 1.7;
+  margin-bottom: 18px;
+  border: 1px solid transparent;
+  animation: fadein .35s ease;
+}
+.alert.ok    { background: var(--accent-soft);  border-color: var(--accent);  color: var(--accent); }
+.alert.error { background: var(--danger-soft);  border-color: var(--danger);  color: var(--danger); }
+.alert.hide  { display: none; }
+@keyframes fadein { from { opacity: 0; transform: translateY(-6px); } to { opacity: 1; transform: none; } }
+
+/* ═══════════════ الأدلة (الخطوات) ═══════════════ */
+.pane { animation: fadein .35s ease; }
+.pane.hide { display: none; }
+.pane h2 { font-size: 19px; font-weight: 800; margin-bottom: 5px; }
+.hint { font-size: 13.5px; color: var(--muted); margin-bottom: 16px; line-height: 1.7; }
+
+input {
+  width: 100%;
+  padding: 14px 16px;
+  border-radius: 13px;
+  border: 1.5px solid var(--border);
+  background: var(--surface);
+  color: var(--text);
+  font: inherit;
+  font-size: 15px;
+  outline: none;
+  margin-top: 12px;
+  transition: border-color .2s, box-shadow .2s;
+}
+input::placeholder { color: var(--muted); opacity: .7; }
+input:focus { border-color: var(--accent); box-shadow: 0 0 0 4px var(--accent-soft); }
+#phone { direction: ltr; text-align: left; }
+#code {
+  direction: ltr;
+  text-align: center;
+  letter-spacing: 14px;
+  font-size: 24px;
+  font-weight: 800;
+  padding-top: 11px;
+  padding-bottom: 11px;
+}
+#twofa { direction: ltr; text-align: left; }
+
+/* ═══════════════ الأزرار ═══════════════ */
+.btn {
+  width: 100%;
+  margin-top: 20px;
+  padding: 14px;
+  border: none;
+  border-radius: 13px;
+  font: inherit;
+  font-size: 15.5px;
+  font-weight: 800;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 9px;
+  transition: filter .2s, transform .15s, opacity .2s;
+}
+.btn:active:not(:disabled) { transform: scale(.985); }
+.btn:disabled { opacity: .65; cursor: not-allowed; }
+.btn-primary { background: var(--accent); color: #fff; box-shadow: 0 10px 26px var(--accent-soft); }
+.btn-primary:hover:not(:disabled) { filter: brightness(1.12); }
+.btn-download { background: var(--success); color: #fff; box-shadow: 0 10px 26px var(--success-soft); }
+.btn-download:hover:not(:disabled) { filter: brightness(1.08); }
+.btn-ghost {
+  background: transparent;
+  color: var(--muted);
+  border: 1.5px dashed var(--border);
+  width: auto;
+  margin: 16px auto 0;
+  padding: 9px 20px;
+  font-size: 13.5px;
+  font-weight: 700;
+}
+.btn-ghost:hover { color: var(--text); border-color: var(--muted); }
+
+/* مؤشر الدوران (أزرق = جارٍ التحميل) */
+.spinner {
+  width: 17px; height: 17px;
+  border: 2.5px solid rgba(255, 255, 255, .35);
+  border-top-color: #fff;
+  border-radius: 50%;
+  display: inline-block;
+  animation: spin .7s linear infinite;
+}
+.spinner.hide { display: none; }
+@keyframes spin { to { transform: rotate(360deg); } }
+
+.mini-link {
+  background: none; border: none;
+  color: var(--accent);
+  font: inherit; font-size: 13px; font-weight: 700;
+  cursor: pointer;
+  display: block;
+  margin: 14px auto 0;
+}
+.mini-link:hover { text-decoration: underline; }
+
+/* ═══════════════ معلومات الحساب (الخطوة 3) ═══════════════ */
+.success-head { display: flex; align-items: center; gap: 12px; margin-bottom: 4px; }
+.ok-badge {
+  width: 42px; height: 42px;
+  flex: 0 0 42px;
+  border-radius: 50%;
+  display: grid; place-items: center;
+  font-size: 20px; font-weight: 900;
+  color: #fff;
+  background: var(--success);
+  box-shadow: 0 0 0 6px var(--success-soft);
+}
+.info {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 15px;
+  padding: 4px 16px;
+  margin: 18px 0 4px;
+}
+.row-info {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 0;
+  border-bottom: 1px dashed var(--border);
+  font-size: 14.5px;
+}
+.row-info:last-child { border-bottom: none; }
+.row-info span { color: var(--muted); font-weight: 500; }
+.row-info b { direction: ltr; unicode-bidi: embed; font-weight: 800; }
+
+.note {
+  margin-top: 16px;
+  text-align: center;
+  font-size: 12.5px;
+  color: var(--muted);
+  line-height: 1.8;
+}
+
+/* ═══════════════ التذييل ═══════════════ */
+footer { padding: 18px 16px 26px; text-align: center; font-size: 12px; color: var(--muted); line-height: 1.9; }
+footer b { color: var(--text); font-weight: 700; }
+
+@media (max-width: 480px) {
+  .card { padding: 26px 20px 24px; }
+  #code { letter-spacing: 10px; font-size: 21px; }
+}
+</style>
+</head>
+<body>
+
+<div class="orb orb-1"></div>
+<div class="orb orb-2"></div>
+
+<!-- ═══════════════ الترويسة ═══════════════ -->
+<header>
+  <div class="brand">
+    <span class="logo">✈️</span>
+    <div>
+      <h1>TeleSession</h1>
+      <p>تسجيل جلسات Telethon بأمان وخصوصية</p>
+    </div>
+  </div>
+  <button id="themeBtn" class="icon-btn" title="تبديل المظهر" aria-label="تبديل المظهر">🌙</button>
+</header>
+
+<main>
+  <div class="card">
+
+    <!-- ═══════════════ مؤشر الخطوات الثلاث ═══════════════ -->
+    <ol class="stepper">
+      <li class="step active" data-step="1"><span class="dot">1</span><span class="lbl">رقم الهاتف</span></li>
+      <li class="line"></li>
+      <li class="step" data-step="2"><span class="dot">2</span><span class="lbl">رمز التحقق</span></li>
+      <li class="line"></li>
+      <li class="step" data-step="3"><span class="dot">3</span><span class="lbl">الحساب والجلسة</span></li>
+    </ol>
+
+    <!-- التنبيه المرن (أزرق نجاح / أحمر فشل) -->
+    <div id="alert" class="alert ok hide"></div>
+
+    <!-- ═══════════════ الخطوة 1: رقم الهاتف ═══════════════ -->
+    <section id="step1" class="pane">
+      <h2>رقم الهاتف</h2>
+      <p class="hint">أدخل الرقم المسجّل في تيليجرام بالصيغة الدولية،<br>مثال: ‎+9665xxxxxxxx</p>
+      <form onsubmit="return sendCode(event)">
+        <input id="phone" dir="ltr" type="tel" inputmode="tel" autocomplete="tel"
+               placeholder="+9665xxxxxxxx" required />
+        <button id="btnCode" type="submit" class="btn btn-primary">
+          إرسال رمز التحقق <span class="spinner hide"></span>
+        </button>
+      </form>
+    </section>
+
+    <!-- ═══════════════ الخطوة 2: رمز التحقق ═══════════════ -->
+    <section id="step2" class="pane hide">
+      <h2>رمز التحقق</h2>
+      <p class="hint" id="step2hint">أدخل الرمز الذي وصلك</p>
+      <form onsubmit="return verifyCode(event)">
+        <input id="code" dir="ltr" inputmode="numeric" maxlength="6"
+               placeholder="•••••" autocomplete="one-time-code" required />
+        <input id="twofa" dir="ltr" type="password" class="hide"
+               placeholder="كلمة مرور 2FA الإضافية (إن وُجدت)" />
+        <button id="btnVerify" type="submit" class="btn btn-primary">
+          تحقق <span class="spinner hide"></span>
+        </button>
+      </form>
+      <button type="button" class="mini-link" onclick="resendCode()">لم يصلك الرمز؟ أعد الإرسال</button>
+      <button type="button" class="btn-ghost" onclick="goStep(1)">↩ رجوع</button>
+    </section>
+
+    <!-- ═══════════════ الخطوة 3: معلومات الحساب + التحميل ═══════════════ -->
+    <section id="step3" class="pane hide">
+      <div class="success-head">
+        <span class="ok-badge">✓</span>
+        <div>
+          <h2>تم تسجيل الدخول بنجاح</h2>
+          <p class="hint" style="margin-bottom:0">هذه معلومات حسابك وملف الجلسة جاهز</p>
+        </div>
+      </div>
+      <div class="info" id="accountInfo"></div>
+      <button id="btnDownload" class="btn btn-download" onclick="downloadSession()">
+        ⬇️ تحميل ملف الجلسة (.session)
+      </button>
+      <p class="note">🔒 يُحذف الملف من الخادم تلقائيًا بعد التحميل مباشرة —<br>لا يُخزَّن أي شيء بشكل دائم. متوافق مع Telethon 1.40+</p>
+      <button type="button" class="btn-ghost" onclick="resetAll()">تسجيل رقم جديد</button>
+    </section>
+
+  </div>
+</main>
+
+<footer>
+  يعمل محليًا على <b>127.0.0.1:5000</b> • <b>Flask</b> + <b>Telethon</b> + <b>asyncio</b><br>
+  لا تُشارَك أي بيانات، ولا يُرسَل شيء لأي طرف ثالث
+</footer>
+
+<script>
+/* ═══════════════ الحالة العامة ═══════════════ */
+const $ = (id) => document.getElementById(id);
+const state = { phone: "", sessionFile: "", downloaded: false };
+
+/* ═══════════════ المظهر الداكن/الفاتح ═══════════════ */
+const root = document.documentElement;
+const savedTheme = localStorage.getItem("ts_theme");
+if (savedTheme === "light" || savedTheme === "dark") root.dataset.theme = savedTheme;
+
+function updateThemeIcon() {
+  $("themeBtn").textContent = root.dataset.theme === "dark" ? "🌙" : "☀️";
+}
+updateThemeIcon();
+
+$("themeBtn").onclick = () => {
+  root.dataset.theme = root.dataset.theme === "dark" ? "light" : "dark";
+  localStorage.setItem("ts_theme", root.dataset.theme);
+  updateThemeIcon();
+};
+
+/* ═══════════════ أدوات العرض ═══════════════ */
+function goStep(n) {
+  for (let i = 1; i <= 3; i++) $(`step${i}`).classList.toggle("hide", i !== n);
+  document.querySelectorAll(".step").forEach((el) => {
+    const s = +el.dataset.step;
+    el.classList.toggle("active", s === n);
+    el.classList.toggle("done", s < n);
+  });
+  document.querySelectorAll(".line").forEach((el, i) => el.classList.toggle("done", i + 1 < n));
+}
+
+function showAlert(type, msg) {
+  const a = $("alert");
+  a.className = `alert ${type}`;
+  a.textContent = msg;
+}
+function hideAlert() { $("alert").classList.add("hide"); }
+
+function setLoading(btn, on) {
+  btn.disabled = on;
+  btn.querySelector(".spinner").classList.toggle("hide", !on);
+}
+
+async function post(url, body) {
+  const r = await fetch(url, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(body),
+  });
+  return r.json();
+}
+
+/* ═══════════════ الخطوة 1: إرسال رمز التحقق ═══════════════ */
+function sendCode(e) {
+  if (e) e.preventDefault();
+  let phone = $("phone").value.trim();
+  if (phone && !phone.startsWith("+")) phone = "+" + phone;      // إضافة + تلقائيًا
+  if (!/^\+\d{8,15}$/.test(phone)) {
+    showAlert("error", "أدخل رقمًا صالحًا بالصيغة الدولية، مثال: ‎+9665xxxxxxxx");
+    return false;
+  }
+  state.phone = phone;
+  hideAlert();
+
+  const btn = $("btnCode");
+  setLoading(btn, true);
+  post("/request_code", { phone })
+    .then((res) => {
+      if (res.status === "ok") {
+        $("step2hint").textContent = res.message;
+        $("code").value = "";
+        $("twofa").classList.add("hide");
+        $("twofa").value = "";
+        goStep(2);
+      } else {
+        showAlert("error", res.message);
+      }
+    })
+    .catch(() => showAlert("error", "تعذّر الوصول إلى الخادم — تأكد من تشغيل التطبيق."))
+    .finally(() => setLoading(btn, false));
+  return false;
+}
+
+/* إعادة إرسال الرمز (نفس المسار، بخيط جديد) */
+function resendCode() {
+  const btn = $("btnVerify");
+  setLoading(btn, true);
+  post("/request_code", { phone: state.phone })
+    .then((res) => {
+      $("code").value = "";
+      showAlert(res.status === "ok" ? "ok" : "error", res.message);
+    })
+    .catch(() => showAlert("error", "تعذّر الوصول إلى الخادم."))
+    .finally(() => setLoading(btn, false));
+}
+
+/* ═══════════════ الخطوة 2: التحقق من الرمز ═══════════════ */
+function verifyCode(e) {
+  if (e) e.preventDefault();
+  const code = $("code").value.trim().replace(/\s/g, "");
+  if (!code) { showAlert("error", "أدخل رمز التحقق أولًا."); return false; }
+  hideAlert();
+
+  const btn = $("btnVerify");
+  setLoading(btn, true);
+  post("/verify_code", {
+    phone: state.phone,
+    code: code,
+    password: $("twofa").value || null,
+  })
+    .then((res) => {
+      if (res.status === "password_required") {
+        // إظهار حقل 2FA والتركيز عليه
+        showAlert("error", res.message);
+        $("twofa").classList.remove("hide");
+        $("twofa").focus();
+      } else if (res.status === "success") {
+        state.sessionFile = res.session_file;
+        state.downloaded = false;
+        renderAccount(res.account);
+        const dl = $("btnDownload");
+        dl.disabled = false;
+        dl.innerHTML = "⬇️ تحميل ملف الجلسة (.session)";
+        goStep(3);
+      } else {
+        showAlert("error", res.message);
+      }
+    })
+    .catch(() => showAlert("error", "تعذّر الوصول إلى الخادم — تأكد من تشغيل التطبيق."))
+    .finally(() => setLoading(btn, false));
+  return false;
+}
+
+/* ═══════════════ الخطوة 3: عرض الحساب والتحميل ═══════════════ */
+function renderAccount(a) {
+  const rows = [
+    ["الاسم", a.name],
+    ["المعرّف (ID)", String(a.id)],
+    ["اسم المستخدم", a.username],
+    ["رقم الهاتف", a.phone],
+  ];
+  $("accountInfo").innerHTML = rows
+    .map(([k, v]) => `<div class="row-info"><span>${k}</span><b></b></div>`)
+    .join("");
+  // ملء القيم بطريقة آمنة (تفادي حقن HTML)
+  $("accountInfo").querySelectorAll(".row-info b").forEach((el, i) => {
+    el.textContent = rows[i][1];
+  });
+}
+
+function downloadSession() {
+  if (!state.sessionFile) return;
+  window.location.href = "/download/" + encodeURIComponent(state.sessionFile);
+  state.downloaded = true;
+  const btn = $("btnDownload");
+  btn.disabled = true;
+  btn.textContent = "✅ تم تحميل الجلسة وحذف الملف من الخادم";
+}
+
+function resetAll() {
+  state.phone = "";
+  state.sessionFile = "";
+  state.downloaded = false;
+  $("phone").value = "";
+  $("code").value = "";
+  $("twofa").value = "";
+  $("twofa").classList.add("hide");
+  hideAlert();
+  goStep(1);
+}
+</script>
+</body>
+</html>
